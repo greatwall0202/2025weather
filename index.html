@@ -14,14 +14,14 @@
                         radial-gradient(circle at center, rgba(0,255,255,0.03) 1px, transparent 1px);
       background-size: 40px 40px;
       background-position: 0 0, 20px 20px;
-      color: #c9d1d9;
+      color: #ffffff;
       font-family: "Fira Code", monospace;
       -webkit-text-size-adjust: 100%;
     }
     :root {
       --card: #161b22;
       --accent: #00ffff;
-      --text: #c9d1d9;
+      --text: #ffffff;
       --muted: #8b949e;
       --radius: 12px;
       --spacing: 1rem;
@@ -169,10 +169,16 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: "var(--text)" } } },
+          plugins: {
+            legend: {
+              labels: {
+                color: "#ffffff" // 白に変更
+              }
+            }
+          },
           scales: {
-            x: { ticks: { color: "var(--text)" } },
-            y: { ticks: { color: "var(--text)" }, grid: { color: "#2b313d" } }
+            x: { ticks: { color: "#ffffff" } },
+            y: { ticks: { color: "#ffffff" }, grid: { color: "#2b313d" } }
           }
         }
       });
