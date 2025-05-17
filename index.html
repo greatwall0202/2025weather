@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Costco Warehouse 7‑Day Weather</title>
+  <!-- Chart.js CDN for temperature line charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* === Geek‑style dark theme === */
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --accent: #00ffff;
+      --text: #c9d1d9;
+      --muted: #8b949e;
+      --radius: 12px;
+      --spacing: 1rem;
+      --font: "Fira Code", "Consolas", monospace;
+    }
+    html,body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+    }
+    h1 {
+      text-align: center;
+      padding: calc(var(--spacing) * 2) 0 0;
+      color: var(--accent);
+      font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+    }
+    #container {
+      display: grid;
+      gap: calc(var(--spacing) * 2);
+      grid-template-columns: repeat(auto-fit,minmax(320px,1fr));
+      padding: calc(var(--spacing) * 2);
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 10px rgba(0,0,0,.6);
+      padding: var(--spacing);
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing);
+      transition: transform .25s ease;
+    }
+    .card:hover { transform: translateY(-4px); }
+
+    .location {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+    th, td {
+      padding: .35rem .5rem;
+      text-align: center;
+    }
+    th { color: var(--muted); font-weight: 400; }
+    tr:nth-child(even) { background: rgba(255,255,255,.03); }
+    img.icon { width: 32px; height: 32px; }
+
+    canvas {
+      width: 100% !important;
+      max-height: 160px;
+    }
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: .75rem;
+      color: var(--muted);
+    }
+    a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>Costco Japan — 7‑Day Weather Forecast</h1>
+  <div id="container"></div>
+  <footer>
+    Weather data provided by <a href="https://openweathermap.org/" target="_blank" rel="noopener noreferrer">OpenWeatherMap</a>.
+  </footer>
+
+  <script>
+    /* ================= Configuration ================= */
+    const apiKey = "1a9e7d04d69124aa1b670a87a74a57de"; // ← ここに OpenWeatherMap API キーを入力
+
+    // 3 Costco warehouses & their coordinates
+    const locations = [
+      {
+        name: "Costco 久山倉庫店 (Hisayama)",
+        address: "福岡県糟屋郡久山町山田1152‑1",
+        lat: 33.6522092,
+        lon: 130.4869026
+      },
+      {
+        name: "Costco 小郡倉庫店 (Ogori)",
+        address: "福岡県小郡市上岩田818‑3",
+        lat: 33.4046,
+        lon: 130.5881
+      },
+      {
+        name: "Costco 熊本御船倉庫店 (Kumamoto Mifune)",
+        address: "熊本県上益城郡御船町大字小坂字宮田689‑1",
+        lat: 32.7294102,
+        lon: 130.7802135
+      }
+    ];
+
+    // Utility: Fetch JSON with error handling
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    }
+
+    // Build cards once DOM is ready
+    document.addEventListener("DOMContentLoaded", () => {
+      const container = document.getElementById("container");
+      locations.forEach(loc => {
+        // skeleton card
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="location">${loc.name}</div>
+          <div class="addr">${loc.address}</div>
+          <table><thead><tr>
+            <th>日付</th><th>天気</th><th>最高/最低 (°C)</th>
+          </tr></thead><tbody></tbody></table>
+          <canvas></canvas>`;
+        container.appendChild(card);
+
+        // Immediately fetch weather
+        getWeather(loc, card);
+      });
+    });
+
+    async function getWeather(loc, card) {
+      const apiURL = `https://api.openweathermap.org/data/3.0/onecall?lat=${loc.lat}&lon=${loc.lon}&exclude=minutely,hourly,alerts&units=metric&lang=ja&appid=${apiKey}`;
+
+      try {
+        const data = await fetchJSON(apiURL);
+        renderWeather(loc, card, data.daily.slice(0, 7));
+      } catch (err) {
+        card.querySelector("tbody").innerHTML = `<tr><td colspan="3" style="color:red;">APIエラー: ${err.message}</td></tr>`;
+      }
+    }
+
+    function renderWeather(loc, card, daily) {
+      const tbody = card.querySelector("tbody");
+      const highs = [], lows = [], labels = [];
+
+      daily.forEach(day => {
+        const date = new Date(day.dt * 1000);
+        const label = `${date.getMonth() + 1}/${date.getDate()}`;
+        labels.push(label);
+        highs.push(day.temp.max.toFixed(1));
+        lows.push(day.temp.min.toFixed(1));
+
+        const icon = day.weather[0].icon;
+        const desc = day.weather[0].description;
+
+        tbody.insertAdjacentHTML("beforeend", `
+          <tr>
+            <td>${label}</td>
+            <td><img class="icon" src="https://openweathermap.org/img/wn/${icon}.png" alt="${desc}" title="${desc}" /></td>
+            <td>${day.temp.max.toFixed(1)} / ${day.temp.min.toFixed(1)}</td>
+          </tr>`);
+      });
+
+      // Chart.js line chart
+      const ctx = card.querySelector("canvas").getContext("2d");
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "最高気温 (°C)",
+              data: highs,
+              tension: .3,
+              borderWidth: 2,
+              pointRadius: 3,
+              borderColor: "#ff416c", // hot pink
+              backgroundColor: "#ff416c22"
+            },
+            {
+              label: "最低気温 (°C)",
+              data: lows,
+              tension: .3,
+              borderWidth: 2,
+              pointRadius: 3,
+              borderColor: "#1e90ff", // dodger blue
+              backgroundColor: "#1e90ff22"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { ticks: { color: "var(--text)"}, grid: { color: "#2b313d"}},
+            x: { ticks: { color: "var(--text)"}, grid: { display: false } }
+          },
+          plugins: {
+            legend: { labels: { color: "var(--text)" } }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
